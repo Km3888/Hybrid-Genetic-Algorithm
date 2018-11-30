@@ -57,17 +57,12 @@ class Population:
         self.init_population()
 
     def init_population(self):
-
-
-        for i_member in range(self.population_size):
-
-            self.population = [Member(population=self) for _ in range(self.population_size)]
+        self.population = [Member(population=self) for _ in range(self.population_size)]
 
     def gen_update(self):
 
-        #Create an empty array which we can later sort
+        #Create an empty array which we can fill in with the new generation
         next_gen=[]
-
 
         #Run rollouts on every member of the population
         for member in self.population:
@@ -79,8 +74,9 @@ class Population:
         #Rank population based on fitness
         self.population.sort(key=attrgetter('fitness'))
 
-        #Record the best score in the population
-
+        #Record the best member of the population before doing PPO update
+        self.elite = self.population[-1]
+        elite_baby = Member(parent=self.elite, sigma=0)
         #Perform PPO updates for every member of the population
         if self.policy_gradient:
 
@@ -100,15 +96,14 @@ class Population:
 
 
                 j-=1
-
-        self.elite=self.population[-1]
-        elite_baby=Member(parent=self.elite,sigma=0)
+        #Record the PPO-updated version of the best member of the population
+        second_elite_baby=Member(parent=self.elite, sigma=0)
         self.best_scores.append(self.elite.fitness)
         self.data_amounts.append(self.total_data)
         next_gen.append(elite_baby)
+        next_gen.append(second_elite_baby)
 
-
-        for i_new_pheno in range(1,self.population_size):
+        for i_new_pheno in range(2,self.population_size):
 
             n_survivors=int(self.survival_rate*self.population_size)
             number=random.randint(-1*n_survivors,-1)
@@ -119,12 +114,6 @@ class Population:
 
 
             next_gen.append(new_pheno)#Fill in the new generation!
-
-
-            #Let's not worry about fitness approximation for right now
-
-
-                #I should add in a little comparison thing here as a diagnostic to see if pg_updates actually help
 
         #Babysitting aides:
         print('-'*12)
@@ -150,7 +139,6 @@ class Population:
         string+='_lam'+str(self.lam)+ '.txt'
         return string
 
-####These two methods need to be vectorized
 
 class Net_Continuous(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim):
